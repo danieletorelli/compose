@@ -8,7 +8,6 @@ on:
 
 env:
   IMAGE_NAME: compose
-  CACHEKEY_BINARIES: binaries
   PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7
 
 jobs:
@@ -32,19 +31,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache/${{ env.CACHEKEY_BINARIES }}
-          key: ${{ runner.os }}-buildx-${{ env.CACHEKEY_BINARIES }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ env.CACHEKEY_BINARIES }}-
       - uses: docker/setup-qemu-action@v1
       - uses: docker/setup-buildx-action@v1
         id: buildx
         with:
           install: true
-      - name: Available platforms
-        run: echo ${{ steps.buildx.outputs.platforms }}
+      - uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      - name: Build
+        run: |
+          docker build \
+            --cache-from "type=local,src=/tmp/.buildx-cache" \
+            --cache-to "type=local,dest=/tmp/.buildx-cache" \
+            --platform  ${{ env.PLATFORMS }} \
+            --output "type=image,push=false" \
+            --file Dockerfile.${{ matrix.distro }} .
       - name: Log into registry
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         run: |
@@ -52,19 +57,29 @@ jobs:
           docker login ${{ matrix.registry }} \
             -u ${{ secrets[matrix.username] || matrix.username }} \
             --password-stdin
-      - name: Build and push
+      - name: Push
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
         run: |
-          if [ "${{ matrix.distro }}" == "alpine" ]; then
-            echo "Additional arg: latest tag"
-            LATEST_TAG_ARG="-t ${{ env.IMAGE_URL }}/${{ env.IMAGE_NAME }}:latest"
-          fi
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo "${IMAGE_URL}/${IMAGE_NAME}" | tr '[A-Z]' '[a-z]')
 
-          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/master" ]; then
-            echo "Additional arg: push"
-            PUSH_ARG="--push"
-          fi
+          push() {
+            local TAG="${1?}"
 
-          echo "Tag: ${{ env.IMAGE_URL }}/${{ env.IMAGE_NAME }}:${{ matrix.distro }}"
-          echo "Platforms: ${{ env.PLATFORMS }}"
+            echo "IMAGE_ID=${IMAGE_ID}"
+            echo TAG="${TAG}"
+            echo PLATFORMS="${{ env.PLATFORMS }}"
 
-          docker build -f Dockerfile.${{ matrix.distro }} -t ${{ env.IMAGE_URL }}/${{ env.IMAGE_NAME }}:${{ matrix.distro }} ${LATEST_TAG_ARG} --platform ${{ env.PLATFORMS }} ${PUSH_ARG} .
+          docker build \
+            --cache-from "type=local,src=/tmp/.buildx-cache" \
+            --cache-to "type=local,dest=/tmp/.buildx-cache" \
+            --platform  ${{ env.PLATFORMS }} \
+            --output "type=image,push=true" \
+            --tag "${IMAGE_ID}:${TAG}" \
+            --file Dockerfile.${{ matrix.distro }} .
+          }
+
+          push "${{ matrix.distro }}"
+
+          [ "${{ matrix.distro }}" == "alpine" ] && push "latest"
+
