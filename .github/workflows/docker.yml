@@ -1,0 +1,93 @@
+name: Docker
+
+on:
+#  schedule:
+#    - cron: '0 7 * * 0'
+  push:
+    branches:
+      - '*'
+  pull_request:
+
+env:
+  IMAGE_NAME: compose
+
+jobs:
+#  check:
+#    runs-on: ubuntu-latest
+#    outputs:
+#      latest: ${{ steps.latest.outputs.version }}
+#    steps:
+#      - id: latest
+#        name: Fetch latest version
+#        run: |
+#          LATEST=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq .tag_name | sed -e 's/"//g' -e 's/^v//')
+#          curl -s --show-error --fail -o /dev/null -I https://github.com/docker/compose/releases/download/v${LATEST}/sbt-${LATEST}.tgz
+#          echo "Latest: $LATEST"
+#          echo "::set-output name=version::$(echo $LATEST)"
+
+  build:
+#    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [ 'alpine' ]
+        platform: [ 'linux/amd64', 'linux/arm64', 'linux/arm/v6', 'linux/arm/v7' ]
+        registry: [ 'docker.pkg.github.com' ]
+        include:
+          - registry: 'docker.pkg.github.com'
+            repository: ${{ github.repository }}
+            username: ${{ github.actor }}
+            token: 'GITHUB_TOKEN'
+#          - registry: 'docker.io'
+#            repository: 'DOCKER_HUB_USERNAME'
+#            username: 'DOCKER_HUB_USERNAME'
+#            token: 'DOCKER_HUB_TOKEN'
+    env:
+ #     VERSION: ${{ needs.check.outputs.latest }}
+      IMAGE_URL: "${{ matrix.registry }}/${{ secrets[matrix.repository] || matrix.repository }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: docker/setup-qemu-action@v1
+      - uses: docker/setup-buildx-action@v1
+        id: buildx
+        with:
+          install: true
+      - name: Available platforms
+        run: echo ${{ steps.buildx.outputs.platforms }}
+      - name: Build
+        run: |
+          docker build . -f Dockerfile.${{ matrix.distro }} -t $IMAGE_NAME --platform ${{ matrix.platform }}
+      - name: Log into registry
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
+        run: |
+          echo "${{ secrets[matrix.token] }}" | \
+          docker login ${{ matrix.registry }} \
+            -u ${{ secrets[matrix.username] || matrix.username }} \
+            --password-stdin
+      - name: Push
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'schedule' }}
+        run: |
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo "$IMAGE_URL/$IMAGE_NAME" | tr '[A-Z]' '[a-z]')
+
+          push() {
+            local TAG=${1?}
+
+            echo IMAGE_ID=$IMAGE_ID
+            echo TAG=$TAG
+
+            docker tag $IMAGE_NAME $IMAGE_ID:$TAG
+            docker push $IMAGE_ID:$TAG
+          }
+
+          case "${{ matrix.distro }}" in
+            "alpine")
+              push "alpine"
+              push "latest"
+              ;;
+            *)
+              echo "Error: Unexpected distro: ${{ matrix.distro }}" >&2
+              exit 1
+              ;;
+          esac
