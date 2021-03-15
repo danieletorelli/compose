@@ -1,8 +1,8 @@
 name: Docker
 
 on:
-#  schedule:
-#    - cron: '0 7 * * 0'
+  schedule:
+    - cron: '0 7 * * 0'
   push:
     branches:
       - '*'
@@ -14,25 +14,11 @@ env:
   PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7
 
 jobs:
-#  check:
-#    runs-on: ubuntu-latest
-#    outputs:
-#      latest: ${{ steps.latest.outputs.version }}
-#    steps:
-#      - id: latest
-#        name: Fetch latest version
-#        run: |
-#          LATEST=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq .tag_name | sed -e 's/"//g' -e 's/^v//')
-#          curl -s --show-error --fail -o /dev/null -I https://github.com/docker/compose/releases/download/v${LATEST}/sbt-${LATEST}.tgz
-#          echo "Latest: $LATEST"
-#          echo "::set-output name=version::$(echo $LATEST)"
-
   build:
-#    needs: check
     strategy:
       fail-fast: false
       matrix:
-        distro: [ 'alpine', 'debian', 'centos' ]
+        distro: [ 'alpine', 'debian' ]
         registry: [ 'docker.io' ]
         include:
 #          - registry: 'docker.pkg.github.com'
@@ -44,7 +30,6 @@ jobs:
             username: 'DOCKER_HUB_USERNAME'
             token: 'DOCKER_HUB_TOKEN'
     env:
- #     VERSION: ${{ needs.check.outputs.latest }}
       IMAGE_URL: "${{ matrix.registry }}/${{ secrets[matrix.repository] || matrix.repository }}"
     runs-on: ubuntu-latest
     steps:
