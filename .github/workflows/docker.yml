@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: [ 'alpine', 'debian' ]
+        distro: [ 'alpine', 'debian', 'centos' ]
         platform: [ 'linux/amd64', 'linux/arm64', 'linux/arm/v6', 'linux/arm/v7' ]
         registry: [ 'docker.pkg.github.com' ]
         include:
@@ -88,6 +88,9 @@ jobs:
               ;;
             "debian")
               push "debian"
+              ;;
+            "centos")
+              push "centos"
               ;;
             *)
               echo "Error: Unexpected distro: ${{ matrix.distro }}" >&2
