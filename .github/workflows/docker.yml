@@ -39,9 +39,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ matrix.distro }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            ${{ runner.os }}-buildx-${{ matrix.distro }}
       - name: Build
         run: |
           docker build \
@@ -81,5 +81,5 @@ jobs:
 
           push "${{ matrix.distro }}"
 
-          [ "${{ matrix.distro }}" == "alpine" ] && push "latest"
+          [ "${{ matrix.distro }}" == "alpine" ] && push "latest" || exit 0
 
