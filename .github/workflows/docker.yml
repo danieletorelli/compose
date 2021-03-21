@@ -5,6 +5,11 @@ on:
     branches:
       - '*'
   pull_request:
+  workflow_run:
+    workflows:
+      - 'Upstream sync'
+    types:
+      - 'completed'
 
 env:
   IMAGE_NAME: compose
@@ -12,6 +17,7 @@ env:
 
 jobs:
   build:
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' || true }}
     strategy:
       fail-fast: false
       matrix:
