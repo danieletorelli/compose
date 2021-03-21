@@ -16,7 +16,7 @@ jobs:
         ref: master
     - name: Pull upstream changes
       id: sync
-      uses: aormsby/Fork-Sync-With-Upstream-action@v2.2
+      uses: aormsby/Fork-Sync-With-Upstream-action@v2.3
       with:
         git_user: "Upstream Sync"
         upstream_repository: docker/compose
