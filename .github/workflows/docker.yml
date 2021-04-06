@@ -57,14 +57,14 @@ jobs:
             --output "type=image,push=false" \
             --file Dockerfile.${{ matrix.distro }} .
       - name: Log into registry
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_run') && github.ref == 'refs/heads/master' }}
         run: |
           echo "${{ secrets[matrix.token] }}" | \
           docker login ${{ matrix.registry }} \
             -u ${{ secrets[matrix.username] || matrix.username }} \
             --password-stdin
       - name: Push
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_run') && github.ref == 'refs/heads/master' }}
         run: |
           # Change all uppercase to lowercase
           IMAGE_ID=$(echo "${IMAGE_URL}/${IMAGE_NAME}" | tr '[A-Z]' '[a-z]')
