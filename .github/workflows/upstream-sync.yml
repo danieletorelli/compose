@@ -22,5 +22,5 @@ jobs:
         upstream_repository: docker/compose
         upstream_branch: master
         target_branch: master
-        git_pull_args: "--unshallow"
+        git_pull_args: "--unshallow --rebase"
 
