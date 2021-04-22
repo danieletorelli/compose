@@ -17,7 +17,7 @@ env:
 
 jobs:
   build:
-    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' || true }}
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     strategy:
       fail-fast: false
       matrix:
